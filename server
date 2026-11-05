@@ -1,0 +1,122 @@
+'use strict';
+
+/**
+ * MIR suivi — serveur statique (Node.js, aucune dépendance externe)
+ * Sert le dossier ./public (index.html = menu des applications).
+ *
+ * Variables d'environnement :
+ *   PORT : port d'écoute (défaut 3000)
+ *   HOST : adresse d'écoute (défaut 0.0.0.0 → accessible depuis le réseau local)
+ */
+
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+const PORT = parseInt(process.env.PORT, 10) || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
+const PUBLIC_DIR = path.join(__dirname, 'public');
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.webp': 'image/webp',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+};
+
+function send(res, status, body, headers = {}) {
+  res.writeHead(status, {
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'same-origin',
+    ...headers
+  });
+  res.end(body);
+}
+
+const server = http.createServer((req, res) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return send(res, 405, 'Méthode non autorisée', { Allow: 'GET, HEAD' });
+  }
+
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  } catch (e) {
+    return send(res, 400, 'Requête invalide');
+  }
+
+  // Route de contrôle
+  if (pathname === '/health') {
+    return send(res, 200, JSON.stringify({ status: 'ok', app: 'mir-suivi' }), {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store'
+    });
+  }
+
+  if (pathname.includes('\0')) return send(res, 400, 'Requête invalide');
+
+  // Résolution sécurisée (empêche la sortie du dossier public)
+  let filePath = path.normalize(path.join(PUBLIC_DIR, pathname));
+  if (filePath !== PUBLIC_DIR && !filePath.startsWith(PUBLIC_DIR + path.sep)) {
+    return send(res, 403, 'Accès interdit');
+  }
+
+  fs.stat(filePath, (err, stat) => {
+    if (!err && stat.isDirectory()) filePath = path.join(filePath, 'index.html');
+
+    fs.readFile(filePath, (err2, data) => {
+      if (err2) {
+        // Repli vers l'application (liens directs de type /#caisse)
+        if (path.extname(pathname) === '') {
+          return fs.readFile(path.join(PUBLIC_DIR, 'index.html'), (e3, idx) => {
+            if (e3) return send(res, 404, 'Introuvable');
+            send(res, 200, req.method === 'HEAD' ? '' : idx, {
+              'Content-Type': MIME['.html'],
+              'Cache-Control': 'no-cache'
+            });
+          });
+        }
+        return send(res, 404, 'Introuvable');
+      }
+      const ext = path.extname(filePath).toLowerCase();
+      send(res, 200, req.method === 'HEAD' ? '' : data, {
+        'Content-Type': MIME[ext] || 'application/octet-stream',
+        'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600'
+      });
+    });
+  });
+});
+
+server.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') {
+    console.error(`✖ Le port ${PORT} est déjà utilisé. Lancez par exemple : PORT=${PORT + 1} npm start`);
+  } else {
+    console.error('✖ Erreur serveur :', e.message);
+  }
+  process.exit(1);
+});
+
+server.listen(PORT, HOST, () => {
+  console.log('MIR suivi — serveur démarré');
+  console.log(`  Local   : http://localhost:${PORT}`);
+  Object.values(os.networkInterfaces()).flat()
+    .filter((i) => i && i.family === 'IPv4' && !i.internal)
+    .forEach((i) => console.log(`  Réseau  : http://${i.address}:${PORT}`));
+  console.log('Ctrl+C pour arrêter.');
+});
+
+const stop = () => server.close(() => process.exit(0));
+process.on('SIGINT', stop);
+process.on('SIGTERM', stop);

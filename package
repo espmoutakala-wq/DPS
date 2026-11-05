@@ -1,0 +1,15 @@
+{
+  "name": "mir-suivi",
+  "version": "1.0.0",
+  "description": "MIR suivi — Menu des applications (MIR-CAISSE, DPS-Suivi des cultes, Suivi des effectifs), servi par un serveur Node.js sans dépendance.",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}

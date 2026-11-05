@@ -1,0 +1,71 @@
+MIR suivi — Guide d'installation
+Application web « MIR suivi — Menu des applications » regroupant :
+MIR-CAISSE
+DPS-Suivi des cultes
+Suivi des effectifs
+une vue côte à côte (DPS + CAISSE)
+Elle est servie par un petit serveur Node.js sans aucune dépendance à installer.
+1. Structure du dossier
+```
+mir-suivi/
+├── public/
+│   └── index.html          ← l'application (menu + sous-applications)
+├── server.js               ← serveur web
+├── package.json
+└── README-INSTALLATION.md
+```
+2. Prérequis
+Node.js 18 ou plus récent — https://nodejs.org (version LTS)
+Vérifier : `node -v`
+3. Installation et démarrage
+Copier le dossier `mir-suivi` sur l'ordinateur ou le serveur.
+Ouvrir un terminal dans ce dossier.
+Lancer :
+```bash
+npm start
+```
+(ou `node server.js`). Aucun `npm install` n'est nécessaire.
+Ouvrir http://localhost:3000 dans le navigateur.
+Le terminal affiche aussi l'adresse réseau (ex. `http://192.168.1.20:3000`) pour utiliser l'application depuis un autre poste ou un téléphone du même réseau.
+4. Configuration
+Variable	Rôle	Défaut
+`PORT`	Port d'écoute	`3000`
+`HOST`	Adresse d'écoute (`127.0.0.1` = cet ordinateur seulement)	`0.0.0.0`
+Exemples :
+```bash
+# Linux / macOS
+PORT=8080 npm start
+
+# Windows (PowerShell)
+$env:PORT=8080; npm start
+
+# Windows (cmd)
+set PORT=8080 && npm start
+```
+5. Liens directs
+`http://localhost:3000/#caisse` → MIR-CAISSE
+`http://localhost:3000/#dps` → DPS-Suivi des cultes
+`http://localhost:3000/#split` → vue côte à côte
+`http://localhost:3000/health` → contrôle de fonctionnement du serveur
+6. Données — à lire
+Les données saisies sont enregistrées dans le navigateur (stockage local), pas sur le serveur :
+elles restent sur l'appareil et le navigateur utilisés ;
+elles sont liées à l'adresse (`localhost:3000` et `192.168.1.20:3000` ont des données séparées) — utilisez toujours la même adresse ;
+vider les données de navigation les efface.
+👉 Faites régulièrement des exports Excel (fonction d'export de chaque application) comme sauvegarde.
+7. Export Excel (connexion Internet)
+L'application charge les bibliothèques d'export (ExcelJS, SheetJS) depuis `cdnjs.cloudflare.com`. L'export Excel nécessite donc une connexion Internet au moins lors du premier chargement.
+8. Lancement automatique (optionnel)
+Avec PM2 (garde le serveur actif et le relance au démarrage) :
+```bash
+npm install -g pm2
+pm2 start server.js --name mir-suivi
+pm2 save
+pm2 startup
+```
+9. Dépannage
+Problème	Solution
+`Le port 3000 est déjà utilisé`	Lancer avec un autre port : `PORT=3001 npm start`
+`node` n'est pas reconnu	Installer Node.js puis rouvrir le terminal
+Page inaccessible depuis un autre poste	Autoriser le port dans le pare-feu et utiliser l'adresse « Réseau » affichée
+Données disparues	Utiliser la même adresse/navigateur ; restaurer depuis un export
